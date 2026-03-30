@@ -1,35 +1,29 @@
 {
-  "name": "smart-text-extractor",
+  "name": "fconv-desktop",
   "version": "1.0.0",
-  "description": "智能文档文字提取器 - 桌面版",
+  "description": "FConv 智能文档文字提取器 - 桌面版",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build-win": "electron-builder --win",
-    "build-mac": "electron-builder --mac",
-    "build-linux": "electron-builder --linux"
+    "build": "electron-builder --win"
   },
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.0.0"
+    "electron": "33.0.0",
+    "electron-builder": "^26.8.1"
   },
   "build": {
-    "appId": "com.smarttext.extractor",
-    "productName": "智取-智能文档文字提取器",
+    "appId": "com.fconv.extractor",
+    "productName": "FConv",
     "directories": {
       "output": "dist"
     },
+    "files": [
+      "*.html",
+      "*.js",
+      "node_modules/**/*"
+    ],
     "win": {
-      "target": "nsis",
-      "icon": "icons/icon.ico"
-    },
-    "mac": {
-      "target": "dmg",
-      "icon": "icons/icon.icns"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "target": "portable"
     }
   }
 }

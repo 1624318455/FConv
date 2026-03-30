@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FConv - 智能文档文字提取器</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=EB+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0D9488;
+            --primary-light: #14B8A6;
+            --secondary: #134E4A;
+            --cta: #F97316;
+            --cta-hover: #EA580C;
+            --bg: #F0FDFA;
+            --text: #134E4A;
+            --text-muted: #5EEAD4;
+            --card-bg: #FFFFFF;
+            --border: #CCFBF1;
+            --shadow: rgba(13, 148, 136, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg);
+            font-family: 'Crimson Text', 'EB Garamond', Georgia, serif;
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 32px 40px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 24px var(--shadow);
+            border: 1px solid var(--border);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .header:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px var(--shadow);
+        }
+
+        .header h1 {
+            font-family: 'EB Garamond', Georgia, serif;
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--secondary);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            color: var(--primary);
+            font-size: 16px;
+            font-style: italic;
+        }
+
+        .badges {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            transition: transform 0.1s ease;
+        }
+
+        .badge:hover {
+            transform: scale(1.05);
+        }
+
+        .upload-area {
+            background: var(--card-bg);
+            border: 2px dashed var(--primary-light);
+            border-radius: 24px;
+            padding: 56px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(13, 148, 136, 0.05), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .upload-area:hover::before {
+            left: 100%;
+        }
+
+        .upload-area:hover, .upload-area.drag-over {
+            border-color: var(--cta);
+            background: #FFF7ED;
+            transform: scale(1.005);
+        }
+
+        .upload-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+            display: inline-block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .upload-area h3 {
+            margin-bottom: 8px;
+            color: var(--secondary);
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .upload-area p {
+            color: var(--primary);
+            font-size: 14px;
+            font-style: italic;
+        }
+
+        .upload-btn {
+            background: var(--cta);
+            color: white;
+            border: none;
+            padding: 14px 36px;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .upload-btn:hover {
+            background: var(--cta-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+        }
+
+        .upload-btn:active {
+            transform: translateY(0);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .file-item {
+            background: var(--card-bg);
+            padding: 10px 18px;
+            border-radius: 24px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 8px var(--shadow);
+            transition: transform 0.1s ease;
+            cursor: default;
+        }
+
+        .file-item:hover {
+            transform: scale(1.02);
+        }
+
+        .file-item .remove {
+            cursor: pointer;
+            color: var(--cta);
+            font-weight: bold;
+            transition: transform 0.1s ease;
+        }
+
+        .file-item .remove:hover {
+            transform: scale(1.2);
+        }
+
+        .progress-area {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            display: none;
+            box-shadow: 0 4px 16px var(--shadow);
+        }
+
+        .progress-bar {
+            background: var(--border);
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, var(--primary), var(--primary-light), var(--cta));
+            width: 0%;
+            height: 100%;
+            transition: width 0.2s ease;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            margin-top: 12px;
+            font-size: 14px;
+            color: var(--primary);
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .dual-pane {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .dual-pane {
+                grid-template-columns: 1fr;
+            }
+            .header h1 {
+                font-size: 28px;
+            }
+        }
+
+        .pane {
+            background: var(--card-bg);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 4px 24px var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .pane-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            padding: 18px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .pane-header h3 {
+            font-size: 16px;
+            color: white;
+            font-weight: 600;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            color: white;
+            transition: all 0.15s ease;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-1px);
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+            padding-bottom: 8px;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            z-index: 100;
+            min-width: 160px;
+            margin-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        .dropdown-menu::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 0;
+            right: 0;
+            height: 10px;
+        }
+
+        .dropdown:hover .dropdown-menu {
+            display: block;
+        }
+
+        .dropdown-menu button {
+            display: block;
+            width: 100%;
+            padding: 12px 18px;
+            border: none;
+            background: none;
+            text-align: left;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text);
+            transition: background 0.1s ease;
+        }
+
+        .dropdown-menu button:hover {
+            background: var(--bg);
+            color: var(--primary);
+        }
+
+        .pane-content {
+            height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #FAFAFA;
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-left: 3px solid var(--primary);
+            padding-left: 14px;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .log-entry.error {
+            border-left-color: var(--cta);
+            color: var(--cta);
+        }
+
+        .log-entry.success {
+            border-left-color: #10B981;
+            color: #059669;
+        }
+
+        .footer {
+            margin-top: 32px;
+            text-align: center;
+            color: var(--primary);
+            font-size: 13px;
+            font-style: italic;
+            opacity: 0.8;
+        }
+
+        .footer strong {
+            color: var(--cta);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>FConv · 智取</h1>
+        <p>智能文档文字提取器 — 精准识别，优雅提取</p>
+        <div class="badges">
+            <span class="badge">本地处理</span>
+            <span class="badge">水印过滤</span>
+            <span class="badge">断点续传</span>
+            <span class="badge">多格式导出</span>
+        </div>
+    </div>
+    
+    <div class="upload-area" id="dropZone">
+        <div class="upload-icon">📄</div>
+        <h3>拖拽文件至此处，或点击选择</h3>
+        <p>支持 PNG / JPG / PDF / Word / Excel / PPT / TXT</p>
+        <button class="upload-btn" id="selectBtn">选择文件</button>
+        <input type="file" id="fileInput" multiple accept=".png,.jpg,.jpeg,.bmp,.webp,.pdf,.docx,.xlsx,.xls,.pptx,.ppt,.txt">
+    </div>
+    
+    <div id="fileListArea" class="file-list"></div>
+    
+    <div class="progress-area" id="progressArea">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">准备就绪...</div>
+    </div>
+    
+    <div class="dual-pane">
+        <div class="pane">
+            <div class="pane-header">
+                <h3>提取结果</h3>
+                <div class="action-buttons">
+                    <button class="btn" id="copyBtn">复制</button>
+                    <div class="dropdown">
+                        <button class="btn">导出 ▾</button>
+                        <div class="dropdown-menu">
+                            <button data-format="txt">TXT 纯文本</button>
+                            <button data-format="md">Markdown</button>
+                            <button data-format="html">HTML 网页</button>
+                            <button data-format="json">JSON 数据</button>
+                        </div>
+                    </div>
+                    <button class="btn" id="clearBtn">清空</button>
+                </div>
+            </div>
+            <div class="pane-content" id="resultArea">
+                等待上传文件...
+            </div>
+        </div>
+        
+        <div class="pane">
+            <div class="pane-header">
+                <h3>处理日志</h3>
+                <button class="btn" id="clearLogBtn">清空</button>
+            </div>
+            <div class="pane-content" id="logArea">
+                <div class="log-entry success">✓ OCR 引擎加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p><strong>本地处理</strong> · 文件不上传服务器 · 基于 Tesseract OCR</p>
+    </div>
+</div>
+
+<script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.4.2/mammoth.browser.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+    let worker = null;
+    let workerReady = false;
+    let currentText = "";
+    let currentWords = [];
+    let currentMetadata = {};
+    let processedFiles = [];
+    
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const selectBtn = document.getElementById('selectBtn');
+    const fileListArea = document.getElementById('fileListArea');
+    const progressArea = document.getElementById('progressArea');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const resultArea = document.getElementById('resultArea');
+    const logArea = document.getElementById('logArea');
+    const copyBtn = document.getElementById('copyBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const clearLogBtn = document.getElementById('clearLogBtn');
+    
+    function addLog(msg, type = 'info') {
+        const logDiv = document.createElement('div');
+        logDiv.className = `log-entry ${type === 'error' ? 'error' : (type === 'success' ? 'success' : '')}`;
+        logDiv.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logArea.appendChild(logDiv);
+        logDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        console.log(msg);
+    }
+    
+    async function initOCR() {
+        try {
+            addLog("正在加载 OCR 引擎...");
+            worker = await Tesseract.createWorker();
+            await worker.load();
+            await worker.loadLanguage('eng+chi_sim');
+            await worker.initialize('eng+chi_sim');
+            await worker.setParameters({
+                tessedit_pageseg_mode: '6',
+                preserve_interword_spaces: '1'
+            });
+            workerReady = true;
+            addLog("✓ OCR 引擎已就绪", "success");
+        } catch (err) {
+            addLog(`OCR 加载失败: ${err.message}`, "error");
+        }
+    }
+    
+    function filterWatermark(words, imgWidth, imgHeight) {
+        if (!words || words.length === 0) return [];
+        
+        const avgConfidence = words.reduce((sum, w) => sum + w.confidence, 0) / words.length;
+        const avgHeight = words.reduce((sum, w) => sum + (w.bbox.y1 - w.bbox.y0), 0) / words.length;
+        
+        const watermarkKeywords = ['试用版', '演示版', 'sample', 'draft', 'confidential', '内部资料', '水印', '预览', 'trial', '测试版', 'beta'];
+        
+        return words.filter(word => {
+            if (word.confidence < 45) return false;
+            
+            const bbox = word.bbox;
+            const isAtEdge = bbox.x0 < imgWidth * 0.08 || bbox.x1 > imgWidth * 0.92 ||
+                             bbox.y0 < imgHeight * 0.08 || bbox.y1 > imgHeight * 0.92;
+            if (isAtEdge) return false;
+            
+            const wordHeight = bbox.y1 - bbox.y0;
+            if (wordHeight < avgHeight * 0.4) return false;
+            
+            const wordText = word.text.toLowerCase();
+            if (watermarkKeywords.some(kw => wordText.includes(kw))) return false;
+            
+            return true;
+        });
+    }
+    
+    async function parseImage(file) {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = url;
+        });
+        
+        if (!workerReady) await initOCR();
+        
+        addLog(`正在识别图片: ${file.name}`);
+        const { data } = await worker.recognize(url);
+        const filtered = filterWatermark(data.words, img.width, img.height);
+        const cleanText = filtered.map(w => w.text).join(' ');
+        
+        URL.revokeObjectURL(url);
+        addLog(`✓ 图片识别完成，提取 ${filtered.length} 个词`, "success");
+        return { text: cleanText, words: filtered };
+    }
+    
+    async function parsePDF(file) {
+        addLog(`正在解析 PDF: ${file.name}`);
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        let fullText = "";
+        let hasText = false;
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const strings = content.items.map(item => item.str).filter(s => s.trim());
+            if (strings.length > 0) hasText = true;
+            fullText += strings.join(' ') + "\n";
+            progressText.innerText = `解析 PDF: 第 ${i}/${pdf.numPages} 页`;
+            progressFill.style.width = `${(i / pdf.numPages) * 100}%`;
+        }
+        
+        const fileKey = 'ocr_progress_' + file.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const savedResult = loadProgress(fileKey + '_result');
+        if (savedResult && savedResult.text) {
+            const resume = await showConfirm(`发现之前识别结果，共 ${savedResult.pages} 页。是否加载？`);
+            if (resume) {
+                clearProgress(fileKey + '_result');
+                return { text: savedResult.text, words: [] };
+            }
+            clearProgress(fileKey + '_result');
+        }
+        
+        if (!hasText || fullText.trim().length < 50) {
+            addLog(`PDF 文本层内容较少，尝试 OCR 识别...`, 'info');
+            fullText = await parsePDFWithOCR(file, pdf);
+        }
+        
+        addLog(`✓ PDF 解析完成，共 ${pdf.numPages} 页`, "success");
+        return { text: fullText, words: [] };
+    }
+    
+    function showConfirm(message) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(19,78,74,0.5);display:flex;align-items:center;justify-content:center;z-index:99999;';
+            const box = document.createElement('div');
+            box.style.cssText = 'background:white;padding:28px;border-radius:20px;max-width:420px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+            box.innerHTML = `<p style="margin-bottom:24px;font-size:17px;color:#134E4A;line-height:1.6;">${message}</p>`;
+            const btnGroup = document.createElement('div');
+            btnGroup.style.cssText = 'display:flex;gap:14px;justify-content:center;';
+            const okBtn = document.createElement('button');
+            okBtn.textContent = '继续';
+            okBtn.style.cssText = 'padding:12px 28px;background:#0D9488;color:white;border:none;border-radius:12px;cursor:pointer;font-size:14px;font-weight:600;transition:transform 0.1s;';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = '重新开始';
+            cancelBtn.style.cssText = 'padding:12px 28px;background:#F0FDFA;color:#0D9488;border:1px solid #0D9488;border-radius:12px;cursor:pointer;font-size:14px;transition:transform 0.1s;';
+            btnGroup.appendChild(okBtn);
+            btnGroup.appendChild(cancelBtn);
+            box.appendChild(btnGroup);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            okBtn.onclick = () => { document.body.removeChild(overlay); resolve(true); };
+            cancelBtn.onclick = () => { document.body.removeChild(overlay); resolve(false); };
+        });
+    }
+    
+    async function parsePDFWithOCR(file, pdf) {
+        if (!workerReady) await initOCR();
+        
+        const fileKey = 'ocr_progress_' + file.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const scale = 2;
+        let startPage = 1;
+        let savedProgress = loadProgress(fileKey);
+        
+        if (savedProgress && savedProgress.pages > 0 && savedProgress.pages < pdf.numPages) {
+            const resume = await showConfirm(`发现未完成的 OCR 任务：${savedProgress.pages}/${pdf.numPages} 页。是否继续？`);
+            if (resume) {
+                startPage = savedProgress.pages + 1;
+                addLog(`从第 ${startPage} 页继续...`, 'info');
+            } else {
+                clearProgress(fileKey);
+                savedProgress = null;
+            }
+        }
+        
+        let fullText = savedProgress && savedProgress.text ? savedProgress.text : "";
+        
+        for (let i = startPage; i <= pdf.numPages; i++) {
+            try {
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale });
+                
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                await page.render({ canvasContext: context, viewport }).promise;
+                
+                const { data } = await worker.recognize(canvas);
+                const pageText = data.text.trim();
+                if (pageText) {
+                    fullText += pageText + "\n";
+                }
+                
+                saveProgress(fileKey, { pages: i, total: pdf.numPages, text: fullText });
+                
+                progressText.innerText = `OCR 识别: 第 ${i}/${pdf.numPages} 页`;
+                progressFill.style.width = `${(i / pdf.numPages) * 100}%`;
+                
+            } catch (err) {
+                addLog(`第 ${i} 页识别失败: ${err.message}，3秒后重试...`, 'error');
+                await sleep(3000);
+                i--;
+            }
+        }
+        
+        clearProgress(fileKey);
+        saveProgress(fileKey + '_result', { pages: pdf.numPages, text: fullText });
+        addLog(`✓ OCR 识别完成，共 ${pdf.numPages} 页`, "success");
+        return fullText;
+    }
+    
+    function saveProgress(key, data) {
+        try {
+            localStorage.setItem(key, JSON.stringify({ ...data, timestamp: Date.now() }));
+        } catch (e) {}
+    }
+    
+    function loadProgress(key) {
+        try {
+            const data = localStorage.getItem(key);
+            if (!data) return null;
+            const parsed = JSON.parse(data);
+            if (Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000) {
+                clearProgress(key);
+                return null;
+            }
+            return parsed;
+        } catch (e) { return null; }
+    }
+    
+    function clearProgress(key) {
+        try { localStorage.removeItem(key); } catch (e) {}
+    }
+    
+    function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+    
+    async function parseWord(file) {
+        addLog(`正在解析 Word: ${file.name}`);
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        addLog(`✓ Word 解析完成，${result.value.length} 字符`, "success");
+        return { text: result.value, words: [] };
+    }
+    
+    async function parseExcel(file) {
+        addLog(`正在解析 Excel: ${file.name}`);
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        let allText = "";
+        workbook.SheetNames.forEach((sheetName, idx) => {
+            const sheet = workbook.Sheets[sheetName];
+            const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+            allText += `\n【${sheetName}】\n`;
+            data.forEach(row => {
+                const rowStr = row.filter(cell => cell && cell.toString().trim()).join(" | ");
+                if (rowStr) allText += rowStr + "\n";
+            });
+            progressFill.style.width = `${((idx + 1) / workbook.SheetNames.length) * 100}%`;
+        });
+        addLog(`✓ Excel 解析完成，${workbook.SheetNames.length} 个工作表`, "success");
+        return { text: allText, words: [] };
+    }
+    
+    async function parsePPT(file) {
+        addLog(`正在解析 PowerPoint: ${file.name}`);
+        const arrayBuffer = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        const slideFiles = Object.keys(zip.files).filter(name => name.match(/ppt\/slides\/slide\d+\.xml/));
+        let allText = "";
+        for (let i = 0; i < slideFiles.length; i++) {
+            const xml = await zip.files[slideFiles[i]].async("string");
+            const matches = xml.match(/<a:t>([\s\S]*?)<\/a:t>/g) || [];
+            const slideText = matches.map(m => m.replace(/<\/?a:t>/g, '').trim()).join(' ');
+            if (slideText) allText += slideText + "\n\n";
+            progressFill.style.width = `${((i + 1) / slideFiles.length) * 100}%`;
+            progressText.innerText = `解析 PPT: 第 ${i + 1}/${slideFiles.length} 页`;
+        }
+        addLog(`✓ PPT 解析完成，${slideFiles.length} 页`, "success");
+        return { text: allText || "未找到文本内容", words: [] };
+    }
+    
+    async function parseTXT(file) {
+        addLog(`正在读取文本文件: ${file.name}`);
+        const text = await file.text();
+        addLog(`✓ 文本读取完成，${text.length} 字符`, "success");
+        return { text: text, words: [] };
+    }
+    
+    async function processFiles(files) {
+        if (files.length === 0) return;
+        
+        progressArea.style.display = 'block';
+        currentText = "";
+        currentWords = [];
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const percent = (i / files.length) * 100;
+            progressFill.style.width = `${percent}%`;
+            progressText.innerText = `处理文件 ${i + 1}/${files.length}: ${file.name}`;
+            
+            let result;
+            const ext = file.name.split('.').pop().toLowerCase();
+            
+            try {
+                if (['png', 'jpg', 'jpeg', 'bmp', 'webp'].includes(ext)) {
+                    result = await parseImage(file);
+                } else if (ext === 'pdf') {
+                    result = await parsePDF(file);
+                } else if (ext === 'docx') {
+                    result = await parseWord(file);
+                } else if (['xlsx', 'xls'].includes(ext)) {
+                    result = await parseExcel(file);
+                } else if (['pptx', 'ppt'].includes(ext)) {
+                    result = await parsePPT(file);
+                } else if (ext === 'txt') {
+                    result = await parseTXT(file);
+                } else {
+                    throw new Error(`不支持的文件类型: ${ext}`);
+                }
+                
+                if (result.text && result.text.trim()) {
+                    currentText += `\n\n========== 【${file.name}】 ==========\n${result.text.trim()}\n`;
+                    currentWords = currentWords.concat(result.words || []);
+                    addLog(`✓ ${file.name} 处理成功`, "success");
+                } else {
+                    currentText += `\n\n========== 【${file.name}】 ==========\n[无文本内容]\n`;
+                    addLog(`⚠ ${file.name} 未提取到文本`, "error");
+                }
+                
+            } catch (err) {
+                addLog(`✗ ${file.name} 处理失败: ${err.message}`, "error");
+                currentText += `\n\n========== 【${file.name}】 ==========\n[处理失败: ${err.message}]\n`;
+            }
+        }
+        
+        progressFill.style.width = '100%';
+        progressText.innerText = '处理完成！';
+        setTimeout(() => {
+            progressArea.style.display = 'none';
+            progressFill.style.width = '0%';
+        }, 2000);
+        
+        resultArea.innerText = currentText.trim() || "未提取到任何文本内容";
+        
+        currentMetadata = { totalFiles: files.length, extractTime: new Date().toISOString() };
+        addLog(`全部处理完成，${currentText.length} 字符`, "success");
+    }
+    
+    function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    
+    function exportTXT() {
+        const blob = new Blob([currentText], { type: 'text/plain;charset=utf-8' });
+        downloadBlob(blob, `fconv_${Date.now()}.txt`);
+        addLog("已导出 TXT 文件", "success");
+    }
+    
+    function exportMarkdown() {
+        const markdown = `# 文字提取结果\n\n**生成时间**: ${new Date().toLocaleString()}\n\n---\n\n${currentText}\n\n---\n*由 FConv 生成*`;
+        const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+        downloadBlob(blob, `fconv_${Date.now()}.md`);
+        addLog("已导出 Markdown 文件", "success");
+    }
+    
+    function exportHTML() {
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>FConv 提取结果</title><style>body{max-width:900px;margin:40px auto;padding:20px;font-family:Georgia,serif;line-height:1.7}</style></head><body><h1>文字提取结果</h1><p><strong>${new Date().toLocaleString()}</strong></p><hr>${currentText.split('\n').map(p => p.trim() ? `<p>${p.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>` : '<br>').join('')}<hr><small>FConv 智能文档文字提取器</small></body></html>`;
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        downloadBlob(blob, `fconv_${Date.now()}.html`);
+        addLog("已导出 HTML 文件", "success");
+    }
+    
+    function exportJSON() {
+        const data = { text: currentText, metadata: currentMetadata, extractTime: new Date().toISOString(), wordCount: currentText.split(/\s+/).filter(w => w).length };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        downloadBlob(blob, `fconv_${Date.now()}.json`);
+        addLog("已导出 JSON 文件", "success");
+    }
+    
+    async function copyToClipboard() {
+        if (!currentText) { addLog("没有可复制的内容", "error"); return; }
+        try {
+            await navigator.clipboard.writeText(currentText);
+            addLog("已复制到剪贴板", "success");
+            const original = copyBtn.innerText;
+            copyBtn.innerText = "✓ 已复制";
+            setTimeout(() => { copyBtn.innerText = original; }, 1500);
+        } catch (err) { addLog("复制失败: " + err.message, "error"); }
+    }
+    
+    function clearAll() {
+        currentText = "";
+        currentWords = [];
+        currentMetadata = {};
+        resultArea.innerText = "等待上传文件...";
+        addLog("已清空结果");
+    }
+    
+    function clearLog() {
+        logArea.innerHTML = '<div class="log-entry success">✓ 日志已清空</div>';
+    }
+    
+    function updateFileList(files) {
+        fileListArea.innerHTML = '';
+        Array.from(files).forEach((file, idx) => {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.innerHTML = `<span>${file.name}</span> <span>(${(file.size / 1024).toFixed(1)} KB)</span> <span class="remove" data-idx="${idx}">✕</span>`;
+            fileListArea.appendChild(div);
+        });
+    }
+    
+    selectBtn.addEventListener('click', () => fileInput.click());
+    
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+            updateFileList(e.target.files);
+            processFiles(Array.from(e.target.files));
+        }
+    });
+    
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length) { updateFileList(files); processFiles(files); }
+    });
+    
+    copyBtn.addEventListener('click', copyToClipboard);
+    clearBtn.addEventListener('click', clearAll);
+    clearLogBtn.addEventListener('click', clearLog);
+    
+    document.querySelectorAll('[data-format]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const f = btn.dataset.format;
+            if (f === 'txt') exportTXT();
+            if (f === 'md') exportMarkdown();
+            if (f === 'html') exportHTML();
+            if (f === 'json') exportJSON();
+        });
+    });
+    
+    initOCR();
+</script>
+</body>
+</html>
