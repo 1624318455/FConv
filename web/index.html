@@ -469,17 +469,59 @@
         addLog(`📄 正在解析PDF: ${file.name}`);
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        // 先尝试提取文本层
         let fullText = "";
+        let hasText = false;
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const content = await page.getTextContent();
-            const strings = content.items.map(item => item.str);
+            const strings = content.items.map(item => item.str).filter(s => s.trim());
+            if (strings.length > 0) hasText = true;
             fullText += strings.join(' ') + "\n";
             progressText.innerText = `解析PDF: 第 ${i}/${pdf.numPages} 页`;
             progressFill.style.width = `${(i / pdf.numPages) * 100}%`;
         }
+        
+        // 如果没有提取到文本，尝试OCR（扫描件）
+        if (!hasText || fullText.trim().length < 10) {
+            addLog(`⚠️ PDF无文本层，尝试OCR识别...`, 'info');
+            fullText = await parsePDFWithOCR(file, pdf);
+        }
+        
         addLog(`✅ PDF解析完成，共 ${pdf.numPages} 页`);
         return { text: fullText, words: [] };
+    }
+    
+    async function parsePDFWithOCR(file, pdf) {
+        if (!workerReady) await initOCR();
+        
+        let fullText = "";
+        const scale = 2; // 提高分辨率
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale });
+            
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            await page.render({ canvasContext: context, viewport }).promise;
+            
+            const { data } = await worker.recognize(canvas);
+            const pageText = data.text.trim();
+            if (pageText) {
+                fullText += pageText + "\n";
+            }
+            
+            progressText.innerText = `OCR识别: 第 ${i}/${pdf.numPages} 页`;
+            progressFill.style.width = `${(i / pdf.numPages) * 100}%`;
+        }
+        
+        addLog(`✅ OCR识别完成`);
+        return fullText;
     }
     
     async function parseWord(file) {
