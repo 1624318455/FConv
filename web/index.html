@@ -483,9 +483,20 @@
             progressFill.style.width = `${(i / pdf.numPages) * 100}%`;
         }
         
-        // 如果没有提取到文本，尝试OCR（扫描件）
-        if (!hasText || fullText.trim().length < 10) {
-            addLog(`⚠️ PDF无文本层，尝试OCR识别...`, 'info');
+        // 检查是否有之前保存的OCR结果
+        const fileKey = 'ocr_progress_' + file.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const savedResult = loadProgress(fileKey + '_result');
+        if (savedResult && savedResult.text) {
+            const resume = confirm(`发现之前识别结果，共 ${savedResult.pages} 页。是否加载？`);
+            if (resume) {
+                clearProgress(fileKey + '_result');
+                return { text: savedResult.text, words: [] };
+            }
+        }
+        
+        // 如果没有提取到文本或文本很少，尝试OCR（扫描件）
+        if (!hasText || fullText.trim().length < 50) {
+            addLog(`⚠️ PDF文本层内容较少，尝试OCR识别...`, 'info');
             fullText = await parsePDFWithOCR(file, pdf);
         }
         
@@ -548,9 +559,13 @@
             }
         }
         
-        // 完成后清除进度
+        // 完成后清除进度，保存最终结果
         clearProgress(fileKey);
-        addLog(`✅ OCR识别完成，共 ${pdf.numPages} 页`);
+        saveProgress(fileKey + '_result', {
+            pages: pdf.numPages,
+            text: fullText
+        });
+        addLog(`✅ OCR识别完成，共 ${pdf.numPages} 页，已保存结果`);
         return fullText;
     }
     
