@@ -312,6 +312,7 @@
         .dropdown {
             position: relative;
             display: inline-block;
+            padding-bottom: 8px;
         }
 
         .dropdown-menu {
@@ -326,6 +327,16 @@
             z-index: 100;
             min-width: 160px;
             margin-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        .dropdown-menu::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 0;
+            right: 0;
+            height: 10px;
         }
 
         .dropdown:hover .dropdown-menu {
