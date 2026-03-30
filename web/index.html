@@ -487,11 +487,12 @@
         const fileKey = 'ocr_progress_' + file.name.replace(/[^a-zA-Z0-9]/g, '_');
         const savedResult = loadProgress(fileKey + '_result');
         if (savedResult && savedResult.text) {
-            const resume = confirm(`发现之前识别结果，共 ${savedResult.pages} 页。是否加载？`);
+            const resume = await showConfirm(`发现之前识别结果，共 ${savedResult.pages} 页。是否加载？`);
             if (resume) {
                 clearProgress(fileKey + '_result');
                 return { text: savedResult.text, words: [] };
             }
+            clearProgress(fileKey + '_result');
         }
         
         // 如果没有提取到文本或文本很少，尝试OCR（扫描件）
@@ -504,6 +505,31 @@
         return { text: fullText, words: [] };
     }
     
+    function showConfirm(message) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:99999;';
+            const box = document.createElement('div');
+            box.style.cssText = 'background:white;padding:24px;border-radius:16px;max-width:400px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.2);';
+            box.innerHTML = `<p style="margin-bottom:20px;font-size:16px;color:#333;">${message}</p>`;
+            const btnGroup = document.createElement('div');
+            btnGroup.style.cssText = 'display:flex;gap:12px;justify-content:center;';
+            const okBtn = document.createElement('button');
+            okBtn.textContent = '继续';
+            okBtn.style.cssText = 'padding:10px 24px;background:#667eea;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = '重新开始';
+            cancelBtn.style.cssText = 'padding:10px 24px;background:#ddd;color:#333;border:none;border-radius:8px;cursor:pointer;font-size:14px;';
+            btnGroup.appendChild(okBtn);
+            btnGroup.appendChild(cancelBtn);
+            box.appendChild(btnGroup);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+            okBtn.onclick = () => { document.body.removeChild(overlay); resolve(true); };
+            cancelBtn.onclick = () => { document.body.removeChild(overlay); resolve(false); };
+        });
+    }
+    
     async function parsePDFWithOCR(file, pdf) {
         if (!workerReady) await initOCR();
         
@@ -513,12 +539,13 @@
         let savedProgress = loadProgress(fileKey);
         
         if (savedProgress && savedProgress.pages > 0 && savedProgress.pages < pdf.numPages) {
-            const resume = confirm(`发现未完成的OCR任务：${savedProgress.pages}/${pdf.numPages} 页。是否继续？`);
+            const resume = await showConfirm(`发现未完成的OCR任务：${savedProgress.pages}/${pdf.numPages} 页。是否继续？`);
             if (resume) {
                 startPage = savedProgress.pages + 1;
                 addLog(`🔄 从第 ${startPage} 页继续 OCR...`, 'info');
             } else {
                 clearProgress(fileKey);
+                savedProgress = null;
             }
         }
         
