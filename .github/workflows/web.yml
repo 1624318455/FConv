@@ -1,12 +1,10 @@
 name: Web CI/CD
 
+# Vercel 已绑定仓库，会自动监听 web/ 目录变化并部署
+# 此工作流用于保留 CI 验证能力
+
 on:
   push:
-    branches: [master]
-    paths:
-      - 'web/**'
-      - '.github/workflows/web.yml'
-  pull_request:
     branches: [master]
     paths:
       - 'web/**'
@@ -17,19 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-        
-      - name: Pull Vercel Environment
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-        
-      - name: Build Project
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-        
-      - name: Deploy to Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Trigger Vercel Deployment
+        run: |
+          echo "Vercel 会自动监听 web/ 目录并部署"
+          echo "此步骤仅用于验证代码可访问"
