@@ -496,32 +496,97 @@
     async function parsePDFWithOCR(file, pdf) {
         if (!workerReady) await initOCR();
         
-        let fullText = "";
-        const scale = 2; // 提高分辨率
+        const fileKey = 'ocr_progress_' + file.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const scale = 2;
+        let startPage = 1;
+        let savedProgress = loadProgress(fileKey);
         
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale });
-            
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            
-            await page.render({ canvasContext: context, viewport }).promise;
-            
-            const { data } = await worker.recognize(canvas);
-            const pageText = data.text.trim();
-            if (pageText) {
-                fullText += pageText + "\n";
+        if (savedProgress && savedProgress.pages > 0 && savedProgress.pages < pdf.numPages) {
+            const resume = confirm(`发现未完成的OCR任务：${savedProgress.pages}/${pdf.numPages} 页。是否继续？`);
+            if (resume) {
+                startPage = savedProgress.pages + 1;
+                addLog(`🔄 从第 ${startPage} 页继续 OCR...`, 'info');
+            } else {
+                clearProgress(fileKey);
             }
-            
-            progressText.innerText = `OCR识别: 第 ${i}/${pdf.numPages} 页`;
-            progressFill.style.width = `${(i / pdf.numPages) * 100}%`;
         }
         
-        addLog(`✅ OCR识别完成`);
+        let fullText = savedProgress && savedProgress.text ? savedProgress.text : "";
+        
+        for (let i = startPage; i <= pdf.numPages; i++) {
+            try {
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale });
+                
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                await page.render({ canvasContext: context, viewport }).promise;
+                
+                const { data } = await worker.recognize(canvas);
+                const pageText = data.text.trim();
+                if (pageText) {
+                    fullText += pageText + "\n";
+                }
+                
+                // 保存进度
+                saveProgress(fileKey, {
+                    pages: i,
+                    total: pdf.numPages,
+                    text: fullText
+                });
+                
+                progressText.innerText = `OCR识别: 第 ${i}/${pdf.numPages} 页 (已保存)`;
+                progressFill.style.width = `${(i / pdf.numPages) * 100}%`;
+                
+            } catch (err) {
+                addLog(`⚠️ 第 ${i} 页识别失败: ${err.message}，3秒后重试...`, 'error');
+                await sleep(3000);
+                i--; // 重试当前页
+            }
+        }
+        
+        // 完成后清除进度
+        clearProgress(fileKey);
+        addLog(`✅ OCR识别完成，共 ${pdf.numPages} 页`);
         return fullText;
+    }
+    
+    function saveProgress(key, data) {
+        try {
+            localStorage.setItem(key, JSON.stringify({
+                ...data,
+                timestamp: Date.now()
+            }));
+        } catch (e) {}
+    }
+    
+    function loadProgress(key) {
+        try {
+            const data = localStorage.getItem(key);
+            if (!data) return null;
+            const parsed = JSON.parse(data);
+            // 超过24小时清除
+            if (Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000) {
+                clearProgress(key);
+                return null;
+            }
+            return parsed;
+        } catch (e) {
+            return null;
+        }
+    }
+    
+    function clearProgress(key) {
+        try {
+            localStorage.removeItem(key);
+        } catch (e) {}
+    }
+    
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
     
     async function parseWord(file) {
