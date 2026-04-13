@@ -612,6 +612,7 @@
                             <button data-format="md">Markdown</button>
                             <button data-format="html">HTML 网页</button>
                             <button data-format="json">JSON 数据</button>
+                            <button data-format="xlsx">Excel 表格</button>
                         </div>
                     </div>
                     <button class="btn" id="clearBtn">清空</button>
@@ -1061,6 +1062,70 @@
         addLog("已导出 JSON 文件", "success");
     }
     
+    function parseQuestions(text) {
+        const questions = [];
+        const lines = text.split('\n').filter(l => l.trim());
+        
+        let currentQ = null;
+        let optionPattern = /^[A-Da-d][\.、:：]\s*(.+)/;
+        
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            const optionMatch = trimmed.match(optionPattern);
+            
+            if (optionMatch) {
+                if (currentQ) {
+                    currentQ.options.push(optionMatch[1].trim());
+                }
+            } else if (trimmed && !trimmed.startsWith('==========')) {
+                if (currentQ && currentQ.options.length > 0) {
+                    questions.push(currentQ);
+                }
+                currentQ = { question: trimmed, options: [] };
+            }
+        });
+        
+        if (currentQ && currentQ.question) {
+            questions.push(currentQ);
+        }
+        
+        return questions;
+    }
+    
+    function exportXLSX() {
+        const questions = parseQuestions(currentText);
+        
+        if (questions.length > 0) {
+            const wsData = [['题号', '题目', 'A', 'B', 'C', 'D']];
+            questions.forEach((q, idx) => {
+                wsData.push([
+                    idx + 1,
+                    q.question,
+                    q.options[0] || '',
+                    q.options[1] || '',
+                    q.options[2] || '',
+                    q.options[3] || ''
+                ]);
+            });
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '题目');
+            XLSX.writeFile(wb, `fconv_${Date.now()}.xlsx`);
+            addLog(`已导出 Excel 文件（${questions.length} 道题目）`, "success");
+        } else {
+            const lines = currentText.split('\n').filter(l => l.trim());
+            const wsData = [['行号', '内容']];
+            lines.forEach((line, idx) => {
+                wsData.push([idx + 1, line]);
+            });
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '内容');
+            XLSX.writeFile(wb, `fconv_${Date.now()}.xlsx`);
+            addLog("已导出 Excel 文件（文本格式）", "success");
+        }
+    }
+    
     async function copyToClipboard() {
         if (!currentText) { addLog("没有可复制的内容", "error"); return; }
         try {
@@ -1131,6 +1196,7 @@
             if (f === 'md') exportMarkdown();
             if (f === 'html') exportHTML();
             if (f === 'json') exportJSON();
+            if (f === 'xlsx') exportXLSX();
         });
     });
     
