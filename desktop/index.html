@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FConv - 智能文档文字提取器</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=EB+Garamond:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
         :root {
             --primary: #0D9488;
@@ -31,7 +29,7 @@
 
         body {
             background: var(--bg);
-            font-family: 'Crimson Text', 'EB Garamond', Georgia, serif;
+            font-family: Georgia, 'Times New Roman', 'Noto Serif SC', 'Source Han Serif SC', 'Source Han Serif CN', serif;
             min-height: 100vh;
             padding: 20px;
             color: var(--text);
@@ -59,7 +57,7 @@
         }
 
         .header h1 {
-            font-family: 'EB Garamond', Georgia, serif;
+            font-family: Georgia, 'Times New Roman', 'Noto Serif SC', 'Source Han Serif SC', 'Source Han Serif CN', serif;
             font-size: 36px;
             font-weight: 700;
             color: var(--secondary);
@@ -404,10 +402,174 @@
         .footer strong {
             color: var(--cta);
         }
+
+        .settings-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .settings-panel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 20px;
+            width: 400px;
+            max-width: 90vw;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            z-index: 1001;
+        }
+        
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .settings-header h3 {
+            color: var(--secondary);
+            font-size: 18px;
+        }
+        
+        .settings-content {
+            padding: 24px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .setting-item {
+            margin-bottom: 20px;
+        }
+        
+        .setting-item label:first-child {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        .setting-options label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        
+        .setting-item select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        .setting-item input[type="range"] {
+            width: 100%;
+            margin-top: 8px;
+        }
+        
+        #thresholdValue {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        .save-settings {
+            width: 100%;
+            margin-top: 16px;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .save-settings:hover {
+            background: var(--primary-light);
+        }
+        
+        .settings-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            color: white;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
 <div class="container">
+    <div class="settings-overlay" id="settingsOverlay"></div>
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <h3>识别设置</h3>
+            <button class="btn" id="closeSettingsBtn">✕</button>
+        </div>
+        <div class="settings-content">
+            <div class="setting-item">
+                <label>图像预处理</label>
+                <div class="setting-options">
+                    <label><input type="checkbox" id="enablePreprocess" checked> 自动优化图像</label>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label>OCR 模式</label>
+                <select id="ocrMode">
+                    <option value="auto">自动（默认）</option>
+                    <option value="single">单行文本</option>
+                    <option value="sparse">稀疏文本</option>
+                    <option value="accurate">精确模式</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>语言支持</label>
+                <select id="ocrLang">
+                    <option value="eng+chi_sim">中文+英文</option>
+                    <option value="chi_sim">仅中文</option>
+                    <option value="eng">仅英文</option>
+                    <option value="chi_tra">繁体中文</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>水印过滤</label>
+                <div class="setting-options">
+                    <label><input type="checkbox" id="enableWatermark" checked> 启用水印过滤</label>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label>智能标点</label>
+                <div class="setting-options">
+                    <label><input type="checkbox" id="enablePunctuation" checked> 自动恢复标点</label>
+                </div>
+            </div>
+            <div class="setting-item">
+                <label>置信度阈值</label>
+                <input type="range" id="confidenceThreshold" min="30" max="90" value="45">
+                <span id="thresholdValue">45%</span>
+            </div>
+            <button class="btn save-settings" id="saveSettingsBtn">保存设置</button>
+        </div>
+    </div>
+    
     <div class="header">
         <h1>FConv · 智取</h1>
         <p>智能文档文字提取器 — 精准识别，优雅提取</p>
@@ -441,6 +603,7 @@
             <div class="pane-header">
                 <h3>提取结果</h3>
                 <div class="action-buttons">
+                    <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
                     <button class="btn" id="copyBtn">复制</button>
                     <div class="dropdown">
                         <button class="btn">导出 ▾</button>
@@ -449,6 +612,7 @@
                             <button data-format="md">Markdown</button>
                             <button data-format="html">HTML 网页</button>
                             <button data-format="json">JSON 数据</button>
+                            <button data-format="xlsx">Excel 表格</button>
                         </div>
                     </div>
                     <button class="btn" id="clearBtn">清空</button>
@@ -475,6 +639,7 @@
     </div>
 </div>
 
+<script src="fconv-enhance.js"></script>
 <script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.4.2/mammoth.browser.min.js"></script>
@@ -488,6 +653,7 @@
     let currentWords = [];
     let currentMetadata = {};
     let processedFiles = [];
+    let settings = OCROptimizer.loadSettings();
     
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
@@ -501,6 +667,13 @@
     const copyBtn = document.getElementById('copyBtn');
     const clearBtn = document.getElementById('clearBtn');
     const clearLogBtn = document.getElementById('clearLogBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const settingsOverlay = document.getElementById('settingsOverlay');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const thresholdValue = document.getElementById('thresholdValue');
+    const confidenceThreshold = document.getElementById('confidenceThreshold');
     
     function addLog(msg, type = 'info') {
         const logDiv = document.createElement('div');
@@ -511,17 +684,44 @@
         console.log(msg);
     }
     
+    function openSettings() {
+        document.getElementById('enablePreprocess').checked = settings.enablePreprocess;
+        document.getElementById('ocrMode').value = settings.ocrMode;
+        document.getElementById('ocrLang').value = settings.ocrLang;
+        document.getElementById('enableWatermark').checked = settings.enableWatermark;
+        document.getElementById('enablePunctuation').checked = settings.enablePunctuation;
+        document.getElementById('confidenceThreshold').value = settings.confidenceThreshold;
+        thresholdValue.textContent = settings.confidenceThreshold + '%';
+        settingsPanel.style.display = 'block';
+        settingsOverlay.style.display = 'block';
+    }
+    
+    function closeSettings() {
+        settingsPanel.style.display = 'none';
+        settingsOverlay.style.display = 'none';
+    }
+    
+    function saveSettings() {
+        settings = {
+            enablePreprocess: document.getElementById('enablePreprocess').checked,
+            ocrMode: document.getElementById('ocrMode').value,
+            ocrLang: document.getElementById('ocrLang').value,
+            enableWatermark: document.getElementById('enableWatermark').checked,
+            enablePunctuation: document.getElementById('enablePunctuation').checked,
+            confidenceThreshold: parseInt(document.getElementById('confidenceThreshold').value)
+        };
+        OCROptimizer.saveSettings(settings);
+        workerReady = false;
+        if (worker) { worker.terminate(); worker = null; }
+        addLog("设置已保存，OCR 引擎将重新加载", "success");
+        closeSettings();
+        initOCR();
+    }
+    
     async function initOCR() {
         try {
             addLog("正在加载 OCR 引擎...");
-            worker = await Tesseract.createWorker();
-            await worker.load();
-            await worker.loadLanguage('eng+chi_sim');
-            await worker.initialize('eng+chi_sim');
-            await worker.setParameters({
-                tessedit_pageseg_mode: '6',
-                preserve_interword_spaces: '1'
-            });
+            worker = await OCROptimizer.createOptimizedWorker(settings);
             workerReady = true;
             addLog("✓ OCR 引擎已就绪", "success");
         } catch (err) {
@@ -530,29 +730,12 @@
     }
     
     function filterWatermark(words, imgWidth, imgHeight) {
-        if (!words || words.length === 0) return [];
-        
-        const avgConfidence = words.reduce((sum, w) => sum + w.confidence, 0) / words.length;
-        const avgHeight = words.reduce((sum, w) => sum + (w.bbox.y1 - w.bbox.y0), 0) / words.length;
-        
-        const watermarkKeywords = ['试用版', '演示版', 'sample', 'draft', 'confidential', '内部资料', '水印', '预览', 'trial', '测试版', 'beta'];
-        
-        return words.filter(word => {
-            if (word.confidence < 45) return false;
-            
-            const bbox = word.bbox;
-            const isAtEdge = bbox.x0 < imgWidth * 0.08 || bbox.x1 > imgWidth * 0.92 ||
-                             bbox.y0 < imgHeight * 0.08 || bbox.y1 > imgHeight * 0.92;
-            if (isAtEdge) return false;
-            
-            const wordHeight = bbox.y1 - bbox.y0;
-            if (wordHeight < avgHeight * 0.4) return false;
-            
-            const wordText = word.text.toLowerCase();
-            if (watermarkKeywords.some(kw => wordText.includes(kw))) return false;
-            
-            return true;
-        });
+        return PostProcessor.filterWatermark(words, imgWidth, imgHeight, settings);
+    }
+    
+    function preprocessImage(canvas) {
+        if (!settings.enablePreprocess) return canvas;
+        return ImagePreprocessor.preprocess(canvas, { grayscale: true, contrast: true, sharpen: true });
     }
     
     async function parseImage(file) {
@@ -566,10 +749,20 @@
         
         if (!workerReady) await initOCR();
         
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        
+        preprocessImage(canvas);
+        
         addLog(`正在识别图片: ${file.name}`);
-        const { data } = await worker.recognize(url);
+        const { data } = await worker.recognize(canvas);
         const filtered = filterWatermark(data.words, img.width, img.height);
-        const cleanText = filtered.map(w => w.text).join(' ');
+        
+        let cleanText = filtered.map(w => w.text).join(' ');
+        cleanText = PostProcessor.process(cleanText, filtered, img.width, img.height, settings);
         
         URL.revokeObjectURL(url);
         addLog(`✓ 图片识别完成，提取 ${filtered.length} 个词`, "success");
@@ -869,6 +1062,70 @@
         addLog("已导出 JSON 文件", "success");
     }
     
+    function parseQuestions(text) {
+        const questions = [];
+        const lines = text.split('\n').filter(l => l.trim());
+        
+        let currentQ = null;
+        let optionPattern = /^[A-Da-d][\.、:：]\s*(.+)/;
+        
+        lines.forEach(line => {
+            const trimmed = line.trim();
+            const optionMatch = trimmed.match(optionPattern);
+            
+            if (optionMatch) {
+                if (currentQ) {
+                    currentQ.options.push(optionMatch[1].trim());
+                }
+            } else if (trimmed && !trimmed.startsWith('==========')) {
+                if (currentQ && currentQ.options.length > 0) {
+                    questions.push(currentQ);
+                }
+                currentQ = { question: trimmed, options: [] };
+            }
+        });
+        
+        if (currentQ && currentQ.question) {
+            questions.push(currentQ);
+        }
+        
+        return questions;
+    }
+    
+    function exportXLSX() {
+        const questions = parseQuestions(currentText);
+        
+        if (questions.length > 0) {
+            const wsData = [['题号', '题目', 'A', 'B', 'C', 'D']];
+            questions.forEach((q, idx) => {
+                wsData.push([
+                    idx + 1,
+                    q.question,
+                    q.options[0] || '',
+                    q.options[1] || '',
+                    q.options[2] || '',
+                    q.options[3] || ''
+                ]);
+            });
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '题目');
+            XLSX.writeFile(wb, `fconv_${Date.now()}.xlsx`);
+            addLog(`已导出 Excel 文件（${questions.length} 道题目）`, "success");
+        } else {
+            const lines = currentText.split('\n').filter(l => l.trim());
+            const wsData = [['行号', '内容']];
+            lines.forEach((line, idx) => {
+                wsData.push([idx + 1, line]);
+            });
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '内容');
+            XLSX.writeFile(wb, `fconv_${Date.now()}.xlsx`);
+            addLog("已导出 Excel 文件（文本格式）", "success");
+        }
+    }
+    
     async function copyToClipboard() {
         if (!currentText) { addLog("没有可复制的内容", "error"); return; }
         try {
@@ -904,6 +1161,14 @@
     
     selectBtn.addEventListener('click', () => fileInput.click());
     
+    settingsBtn.addEventListener('click', openSettings);
+    closeSettingsBtn.addEventListener('click', closeSettings);
+    settingsOverlay.addEventListener('click', closeSettings);
+    saveSettingsBtn.addEventListener('click', saveSettings);
+    confidenceThreshold.addEventListener('input', (e) => {
+        thresholdValue.textContent = e.target.value + '%';
+    });
+    
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length) {
             updateFileList(e.target.files);
@@ -931,6 +1196,7 @@
             if (f === 'md') exportMarkdown();
             if (f === 'html') exportHTML();
             if (f === 'json') exportJSON();
+            if (f === 'xlsx') exportXLSX();
         });
     });
     

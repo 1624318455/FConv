@@ -37,6 +37,10 @@ jobs:
         working-directory: desktop
         run: npm install
         
+      - name: Run Unit Tests
+        working-directory: desktop
+        run: npm test
+        
       - name: Build Electron App
         working-directory: desktop
         run: |
